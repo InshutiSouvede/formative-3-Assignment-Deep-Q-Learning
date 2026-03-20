@@ -7,7 +7,7 @@ from datetime import datetime
 import json
 import numpy as np
 from stable_baselines3.common.monitor import Monitor
-from stable_baselines3.common.callbacks import EvalCallback, BaseCallback
+from stable_baselines3.common.callbacks import EvalCallback, BaseCallback, CheckpointCallback
 from stable_baselines3.common.atari_wrappers import AtariWrapper
 from stable_baselines3.common.vec_env import DummyVecEnv, VecFrameStack
 from stable_baselines3 import DQN
@@ -192,10 +192,19 @@ def train_dqn(
         render=False
     )
 
+    # Checkpoint callback - saves model every 50k steps for recovery
+    checkpoint_callback = CheckpointCallback(
+        save_freq=50000,
+        save_path=exp_dir,
+        name_prefix="checkpoint",
+        save_replay_buffer=False,
+        save_vecnormalize=True
+    )
+
     # Train the agent
     model.learn(
         total_timesteps=total_timesteps,
-        callback=[metrics_callback, eval_callback],
+        callback=[metrics_callback, eval_callback, checkpoint_callback],
         progress_bar=True
     )
 
@@ -211,10 +220,24 @@ def train_dqn(
     return model, metrics_callback.episode_rewards, metrics_callback.episode_lengths
 
 
-def run_hyperparameter_experiments():
+def is_experiment_completed(experiment_name: str, log_dir: str = "./logs") -> bool:
+    """
+    Check if an experiment has already been completed by looking for training_metrics.json.
+    """
+    import glob
+    pattern = os.path.join(
+        log_dir, f"{experiment_name}_*", "training_metrics.json")
+    matches = glob.glob(pattern)
+    return len(matches) > 0
+
+
+def run_hyperparameter_experiments(resume: bool = True):
     """
     Run multiple experiments with different hyperparameter configurations.
     This function tests various combinations and logs results.
+
+    Args:
+        resume: If True, skip experiments that have already been completed.
     """
 
     # Define hyperparameter configurations to test
@@ -333,10 +356,16 @@ def run_hyperparameter_experiments():
 
     results = []
 
-    for exp in experiments:
+    for i, exp in enumerate(experiments):
         print(f"\n{'#'*60}")
-        print(f"Running Experiment: {exp['name']}")
+        print(f"Experiment {i+1}/{len(experiments)}: {exp['name']}")
         print(f"{'#'*60}")
+
+        # Check if experiment already completed (for resume support)
+        if resume and is_experiment_completed(exp['name']):
+            print(
+                f"Skipping '{exp['name']}' - already completed. Use --no-resume to force re-run.")
+            continue
 
         try:
             model, rewards, lengths = train_dqn(
@@ -441,6 +470,8 @@ if __name__ == "__main__":
                         help="Final exploration epsilon")
     parser.add_argument("--eps-fraction", type=float, default=0.1,
                         help="Fraction of training for epsilon decay")
+    parser.add_argument("--no-resume", action="store_true",
+                        help="Don't skip completed experiments (force re-run all)")
 
     args = parser.parse_args()
 
@@ -462,7 +493,9 @@ if __name__ == "__main__":
     elif args.mode == "experiments":
         # Run all hyperparameter experiments
         print("Running hyperparameter tuning experiments...")
-        results = run_hyperparameter_experiments()
+        if not args.no_resume:
+            print("(Resumable mode: completed experiments will be skipped)")
+        results = run_hyperparameter_experiments(resume=not args.no_resume)
 
     elif args.mode == "compare":
         # Compare policies
