@@ -96,22 +96,23 @@ We tested 10 different hyperparameter configurations to find the optimal setting
 
 ### Results (500,000 timesteps each)
 
-| Experiment       | Mean Reward | Std Dev | Best Eval Reward | Episodes |
-| ---------------- | ----------- | ------- | ---------------- | -------- |
-| **high_gamma**   | 7.80        | 10.81   | **36.4**         | 6728     |
-| baseline         | 7.80        | 11.04   | 23.4             | 6672     |
-| large_batch      | 7.72        | 10.79   | 27.0             | 6538     |
-| small_batch      | 7.26        | 10.25   | 22.4             | 6594     |
-| low_gamma        | 7.21        | 10.32   | 24.0             | 7138     |
-| high_lr          | 6.65        | 9.02    | 23.0             | 7360     |
-| low_lr           | 4.37        | 5.04    | 10.2             | 8435     |
-| slow_exploration | —           | —       | 11.0             | —        |
-| high_final_eps   | —           | —       | —                | —        |
-| optimized        | —           | —       | —                | —        |
+| Experiment         | Mean Reward | Std Dev | Best Eval Reward | Episodes |
+| ------------------ | ----------- | ------- | ---------------- | -------- |
+| **optimized**      | **8.17**    | 11.73   | 24.6             | 6399     |
+| baseline           | 7.80        | 11.04   | 23.4             | 6672     |
+| **high_gamma**     | 7.80        | 10.81   | **36.4**         | 6728     |
+| large_batch        | 7.72        | 10.79   | 27.0             | 6538     |
+| slow_exploration   | 7.54        | 11.07   | 25.4             | 6989     |
+| small_batch        | 7.26        | 10.25   | 22.4             | 6594     |
+| low_gamma          | 7.21        | 10.32   | 24.0             | 7138     |
+| high_final_eps     | 7.09        | 10.10   | 25.0             | 7013     |
+| high_lr            | 6.65        | 9.02    | 23.0             | 7360     |
+| low_lr             | 4.37        | 5.04    | 10.2             | 8435     |
 
-> **Note**: Experiments marked with "—" did not complete fully. `slow_exploration` has partial evaluation data; `high_final_eps` and `optimized` were interrupted before completion.
-
-**Best Configuration**: `high_gamma` (γ=0.999) achieved the highest evaluation reward of **36.4**, showing that long-term reward consideration is crucial for Demon Attack.
+**Key Findings**:
+- **Best Mean Reward**: `optimized` (lr=2.5e-4, ε→0.01) achieved the highest mean reward of **8.17**, suggesting a slightly higher learning rate with lower final exploration is effective.
+- **Best Evaluation Reward**: `high_gamma` (γ=0.999) achieved the highest evaluation reward of **36.4**, showing that long-term reward consideration is crucial for Demon Attack.
+- **Worst Performer**: `low_lr` (lr=1e-5) performed significantly worse, indicating the learning rate was too low for effective learning within 500K timesteps.
 
 ---
 

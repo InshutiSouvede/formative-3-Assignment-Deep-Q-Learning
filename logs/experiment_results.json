@@ -1,34 +1,242 @@
 [
   {
-    "experiment": "low_lr",
-    "error": "You must install tqdm and rich in order to use the progress bar callback. It is included if you install stable-baselines with the extra packages: `pip install stable-baselines3[extra]`"
-  },
-  {
-    "experiment": "low_gamma",
-    "error": "You must install tqdm and rich in order to use the progress bar callback. It is included if you install stable-baselines with the extra packages: `pip install stable-baselines3[extra]`"
-  },
-  {
-    "experiment": "high_gamma",
-    "error": "You must install tqdm and rich in order to use the progress bar callback. It is included if you install stable-baselines with the extra packages: `pip install stable-baselines3[extra]`"
-  },
-  {
-    "experiment": "large_batch",
-    "error": "You must install tqdm and rich in order to use the progress bar callback. It is included if you install stable-baselines with the extra packages: `pip install stable-baselines3[extra]`"
-  },
-  {
-    "experiment": "small_batch",
-    "error": "You must install tqdm and rich in order to use the progress bar callback. It is included if you install stable-baselines with the extra packages: `pip install stable-baselines3[extra]`"
-  },
-  {
-    "experiment": "slow_exploration",
-    "error": "You must install tqdm and rich in order to use the progress bar callback. It is included if you install stable-baselines with the extra packages: `pip install stable-baselines3[extra]`"
+    "experiment": "baseline",
+    "exp_dir": "./logs\\baseline_20260319_204918",
+    "hyperparameters": {
+      "policy": "CnnPolicy",
+      "learning_rate": 0.0001,
+      "gamma": 0.99,
+      "batch_size": 32,
+      "exploration_initial_eps": 1.0,
+      "exploration_final_eps": 0.05,
+      "exploration_fraction": 0.1,
+      "buffer_size": 100000,
+      "learning_starts": 50000,
+      "target_update_interval": 10000,
+      "total_timesteps": 500000,
+      "experiment_name": "baseline"
+    },
+    "mean_reward": 7.798561151079137,
+    "std_reward": 11.035282866954276,
+    "max_reward": 111.0,
+    "total_episodes": 6672,
+    "mean_episode_length": 74.93165467625899,
+    "best_eval_reward": 23.4
   },
   {
     "experiment": "high_final_eps",
-    "error": "You must install tqdm and rich in order to use the progress bar callback. It is included if you install stable-baselines with the extra packages: `pip install stable-baselines3[extra]`"
+    "exp_dir": "./logs\\high_final_eps_20260324_223434",
+    "hyperparameters": {
+      "policy": "CnnPolicy",
+      "learning_rate": 0.0001,
+      "gamma": 0.99,
+      "batch_size": 32,
+      "exploration_initial_eps": 1.0,
+      "exploration_final_eps": 0.1,
+      "exploration_fraction": 0.1,
+      "buffer_size": 100000,
+      "learning_starts": 50000,
+      "target_update_interval": 10000,
+      "total_timesteps": 500000,
+      "experiment_name": "high_final_eps"
+    },
+    "mean_reward": 7.089405389990018,
+    "std_reward": 10.095303334281818,
+    "max_reward": 104.0,
+    "total_episodes": 7013,
+    "mean_episode_length": 71.28618280336518,
+    "best_eval_reward": 25.0
+  },
+  {
+    "experiment": "high_gamma",
+    "exp_dir": "./logs\\high_gamma_20260321_093844",
+    "hyperparameters": {
+      "policy": "CnnPolicy",
+      "learning_rate": 0.0001,
+      "gamma": 0.999,
+      "batch_size": 32,
+      "exploration_initial_eps": 1.0,
+      "exploration_final_eps": 0.05,
+      "exploration_fraction": 0.1,
+      "buffer_size": 100000,
+      "learning_starts": 50000,
+      "target_update_interval": 10000,
+      "total_timesteps": 500000,
+      "experiment_name": "high_gamma"
+    },
+    "mean_reward": 7.79667063020214,
+    "std_reward": 10.811567366265482,
+    "max_reward": 93.0,
+    "total_episodes": 6728,
+    "mean_episode_length": 74.30915576694412,
+    "best_eval_reward": 36.4
+  },
+  {
+    "experiment": "high_lr",
+    "exp_dir": "./logs\\high_lr_20260320_004646",
+    "hyperparameters": {
+      "policy": "CnnPolicy",
+      "learning_rate": 0.0005,
+      "gamma": 0.99,
+      "batch_size": 32,
+      "exploration_initial_eps": 1.0,
+      "exploration_final_eps": 0.05,
+      "exploration_fraction": 0.1,
+      "buffer_size": 100000,
+      "learning_starts": 50000,
+      "target_update_interval": 10000,
+      "total_timesteps": 500000,
+      "experiment_name": "high_lr"
+    },
+    "mean_reward": 6.647146739130434,
+    "std_reward": 9.020106165033072,
+    "max_reward": 89.0,
+    "total_episodes": 7360,
+    "mean_episode_length": 67.93002717391305,
+    "best_eval_reward": 23.0
+  },
+  {
+    "experiment": "large_batch",
+    "exp_dir": "./logs\\large_batch_20260322_004347",
+    "hyperparameters": {
+      "policy": "CnnPolicy",
+      "learning_rate": 0.0001,
+      "gamma": 0.99,
+      "batch_size": 64,
+      "exploration_initial_eps": 1.0,
+      "exploration_final_eps": 0.05,
+      "exploration_fraction": 0.1,
+      "buffer_size": 100000,
+      "learning_starts": 50000,
+      "target_update_interval": 10000,
+      "total_timesteps": 500000,
+      "experiment_name": "large_batch"
+    },
+    "mean_reward": 7.716732945855002,
+    "std_reward": 10.78902627723977,
+    "max_reward": 112.0,
+    "total_episodes": 6538,
+    "mean_episode_length": 76.46176200672988,
+    "best_eval_reward": 27.0
+  },
+  {
+    "experiment": "low_gamma",
+    "exp_dir": "./logs\\low_gamma_20260321_010052",
+    "hyperparameters": {
+      "policy": "CnnPolicy",
+      "learning_rate": 0.0001,
+      "gamma": 0.95,
+      "batch_size": 32,
+      "exploration_initial_eps": 1.0,
+      "exploration_final_eps": 0.05,
+      "exploration_fraction": 0.1,
+      "buffer_size": 100000,
+      "learning_starts": 50000,
+      "target_update_interval": 10000,
+      "total_timesteps": 500000,
+      "experiment_name": "low_gamma"
+    },
+    "mean_reward": 7.212104230876997,
+    "std_reward": 10.316284790800662,
+    "max_reward": 108.0,
+    "total_episodes": 7138,
+    "mean_episode_length": 70.04314934155225,
+    "best_eval_reward": 24.0
+  },
+  {
+    "experiment": "low_lr",
+    "exp_dir": "./logs\\low_lr_20260320_210313",
+    "hyperparameters": {
+      "policy": "CnnPolicy",
+      "learning_rate": 1e-05,
+      "gamma": 0.99,
+      "batch_size": 32,
+      "exploration_initial_eps": 1.0,
+      "exploration_final_eps": 0.05,
+      "exploration_fraction": 0.1,
+      "buffer_size": 100000,
+      "learning_starts": 50000,
+      "target_update_interval": 10000,
+      "total_timesteps": 500000,
+      "experiment_name": "low_lr"
+    },
+    "mean_reward": 4.372258446947243,
+    "std_reward": 5.03628927478816,
+    "max_reward": 49.0,
+    "total_episodes": 8435,
+    "mean_episode_length": 59.267101363366926,
+    "best_eval_reward": 10.2
   },
   {
     "experiment": "optimized",
-    "error": "You must install tqdm and rich in order to use the progress bar callback. It is included if you install stable-baselines with the extra packages: `pip install stable-baselines3[extra]`"
+    "exp_dir": "./logs\\optimized_20260325_013016",
+    "hyperparameters": {
+      "policy": "CnnPolicy",
+      "learning_rate": 0.00025,
+      "gamma": 0.99,
+      "batch_size": 32,
+      "exploration_initial_eps": 1.0,
+      "exploration_final_eps": 0.01,
+      "exploration_fraction": 0.15,
+      "buffer_size": 100000,
+      "learning_starts": 50000,
+      "target_update_interval": 10000,
+      "total_timesteps": 500000,
+      "experiment_name": "optimized"
+    },
+    "mean_reward": 8.174089701515863,
+    "std_reward": 11.725743294192435,
+    "max_reward": 119.0,
+    "total_episodes": 6399,
+    "mean_episode_length": 78.11736208782622,
+    "best_eval_reward": 24.6
+  },
+  {
+    "experiment": "slow_exploration",
+    "exp_dir": "./logs\\slow_exploration_20260324_180839",
+    "hyperparameters": {
+      "policy": "CnnPolicy",
+      "learning_rate": 0.0001,
+      "gamma": 0.99,
+      "batch_size": 32,
+      "exploration_initial_eps": 1.0,
+      "exploration_final_eps": 0.05,
+      "exploration_fraction": 0.3,
+      "buffer_size": 100000,
+      "learning_starts": 50000,
+      "target_update_interval": 10000,
+      "total_timesteps": 500000,
+      "experiment_name": "slow_exploration"
+    },
+    "mean_reward": 7.540706825010731,
+    "std_reward": 11.072981202317004,
+    "max_reward": 121.0,
+    "total_episodes": 6989,
+    "mean_episode_length": 71.53612820145943,
+    "best_eval_reward": 25.4
+  },
+  {
+    "experiment": "small_batch",
+    "exp_dir": "./logs\\small_batch_20260322_042027",
+    "hyperparameters": {
+      "policy": "CnnPolicy",
+      "learning_rate": 0.0001,
+      "gamma": 0.99,
+      "batch_size": 16,
+      "exploration_initial_eps": 1.0,
+      "exploration_final_eps": 0.05,
+      "exploration_fraction": 0.1,
+      "buffer_size": 100000,
+      "learning_starts": 50000,
+      "target_update_interval": 10000,
+      "total_timesteps": 500000,
+      "experiment_name": "small_batch"
+    },
+    "mean_reward": 7.256900212314225,
+    "std_reward": 10.248673401805075,
+    "max_reward": 118.0,
+    "total_episodes": 6594,
+    "mean_episode_length": 75.80542917804064,
+    "best_eval_reward": 22.4
   }
 ]
