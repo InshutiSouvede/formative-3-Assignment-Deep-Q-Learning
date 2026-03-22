@@ -5,7 +5,9 @@ This script trains a DQN agent using Stable Baselines3 on the Demon Attack envir
 
 from datetime import datetime
 import json
+import glob
 import numpy as np
+from concurrent.futures import ProcessPoolExecutor, as_completed
 from stable_baselines3.common.monitor import Monitor
 from stable_baselines3.common.callbacks import EvalCallback, BaseCallback, CheckpointCallback
 from stable_baselines3.common.atari_wrappers import AtariWrapper
@@ -224,20 +226,132 @@ def is_experiment_completed(experiment_name: str, log_dir: str = "./logs") -> bo
     """
     Check if an experiment has already been completed by looking for training_metrics.json.
     """
-    import glob
     pattern = os.path.join(
         log_dir, f"{experiment_name}_*", "training_metrics.json")
     matches = glob.glob(pattern)
     return len(matches) > 0
 
 
-def run_hyperparameter_experiments(resume: bool = True):
+def run_single_experiment(exp: dict, resume: bool = True) -> dict:
+    """
+    Run a single experiment. Designed to be called by multiprocessing pool.
+
+    Args:
+        exp: Experiment configuration dictionary
+        resume: Skip if already completed
+
+    Returns:
+        Result dictionary with experiment metrics or error
+    """
+    exp_name = exp["name"]
+
+    # Check if already completed
+    if resume and is_experiment_completed(exp_name):
+        print(f"[{exp_name}] Skipping - already completed")
+        return {"experiment": exp_name, "skipped": True}
+
+    print(f"[{exp_name}] Starting experiment...")
+
+    try:
+        _, rewards, lengths = train_dqn(
+            policy="CnnPolicy",
+            learning_rate=exp["learning_rate"],
+            gamma=exp["gamma"],
+            batch_size=exp["batch_size"],
+            exploration_initial_eps=exp["exploration_initial_eps"],
+            exploration_final_eps=exp["exploration_final_eps"],
+            exploration_fraction=exp["exploration_fraction"],
+            total_timesteps=exp["total_timesteps"],
+            experiment_name=exp_name,
+            verbose=0  # Reduce noise in parallel mode
+        )
+
+        result = {
+            "experiment": exp_name,
+            "hyperparameters": exp,
+            "mean_reward": float(np.mean(rewards)) if rewards else 0,
+            "std_reward": float(np.std(rewards)) if rewards else 0,
+            "max_reward": float(np.max(rewards)) if rewards else 0,
+            "total_episodes": len(rewards),
+            "mean_episode_length": float(np.mean(lengths)) if lengths else 0
+        }
+        print(f"[{exp_name}] Completed! Mean reward: {result['mean_reward']:.2f}")
+        return result
+
+    except Exception as e:
+        print(f"[{exp_name}] Failed: {e}")
+        return {"experiment": exp_name, "error": str(e)}
+
+
+def aggregate_results_from_disk(log_dir: str = "./logs") -> list:
+    """
+    Aggregate results from all completed experiments by reading from disk.
+    This allows resuming and combining results even after interruption.
+    """
+    results = []
+
+    # Find all experiment directories with training_metrics.json
+    pattern = os.path.join(log_dir, "*", "training_metrics.json")
+    metrics_files = glob.glob(pattern)
+
+    for metrics_path in metrics_files:
+        exp_dir = os.path.dirname(metrics_path)
+        exp_name = os.path.basename(exp_dir).rsplit('_', 2)[
+            0]  # Remove timestamp
+
+        # Skip single_run and cnn_policy experiments
+        if exp_name in ["single_run", "cnn_policy"]:
+            continue
+
+        try:
+            # Load training metrics
+            with open(metrics_path, 'r') as f:
+                metrics = json.load(f)
+
+            # Load hyperparameters
+            hyperparams_path = os.path.join(exp_dir, "hyperparameters.json")
+            hyperparams = {}
+            if os.path.exists(hyperparams_path):
+                with open(hyperparams_path, 'r') as f:
+                    hyperparams = json.load(f)
+
+            # Load evaluation results if available
+            eval_path = os.path.join(exp_dir, "evaluations.npz")
+            best_eval_reward = None
+            if os.path.exists(eval_path):
+                eval_data = np.load(eval_path)
+                if 'results' in eval_data:
+                    best_eval_reward = float(
+                        np.max(np.mean(eval_data['results'], axis=1)))
+
+            result = {
+                "experiment": exp_name,
+                "exp_dir": exp_dir,
+                "hyperparameters": hyperparams,
+                "mean_reward": metrics.get('mean_reward', 0),
+                "std_reward": metrics.get('std_reward', 0),
+                "max_reward": max(metrics.get('episode_rewards', [0])) if metrics.get('episode_rewards') else 0,
+                "total_episodes": len(metrics.get('episode_rewards', [])),
+                "mean_episode_length": metrics.get('mean_length', 0),
+                "best_eval_reward": best_eval_reward
+            }
+            results.append(result)
+
+        except Exception as e:
+            print(f"Warning: Could not load results from {exp_dir}: {e}")
+
+    return results
+
+
+def run_hyperparameter_experiments(resume: bool = True, parallel: bool = False, max_workers: int = 2):
     """
     Run multiple experiments with different hyperparameter configurations.
     This function tests various combinations and logs results.
 
     Args:
         resume: If True, skip experiments that have already been completed.
+        parallel: If True, run experiments in parallel using multiprocessing.
+        max_workers: Maximum number of parallel experiments (only if parallel=True).
     """
 
     # Define hyperparameter configurations to test
@@ -354,51 +468,74 @@ def run_hyperparameter_experiments(resume: bool = True):
         }
     ]
 
-    results = []
+    if parallel:
+        # Parallel execution using ProcessPoolExecutor
+        print(
+            f"\nRunning experiments in PARALLEL mode with {max_workers} workers")
+        print(f"Total experiments: {len(experiments)}")
+        print("="*60 + "\n")
 
-    for i, exp in enumerate(experiments):
-        print(f"\n{'#'*60}")
-        print(f"Experiment {i+1}/{len(experiments)}: {exp['name']}")
-        print(f"{'#'*60}")
+        # Filter experiments to run (skip completed if resume=True)
+        experiments_to_run = []
+        for exp in experiments:
+            if resume and is_experiment_completed(exp['name']):
+                print(f"[{exp['name']}] Already completed - will skip")
+            else:
+                experiments_to_run.append(exp)
 
-        # Check if experiment already completed (for resume support)
-        if resume and is_experiment_completed(exp['name']):
-            print(
-                f"Skipping '{exp['name']}' - already completed. Use --no-resume to force re-run.")
-            continue
+        print(f"\nExperiments to run: {len(experiments_to_run)}")
+        print("="*60 + "\n")
 
-        try:
-            model, rewards, lengths = train_dqn(
-                policy="CnnPolicy",  # CNNPolicy is better for image-based Atari games
-                learning_rate=exp["learning_rate"],
-                gamma=exp["gamma"],
-                batch_size=exp["batch_size"],
-                exploration_initial_eps=exp["exploration_initial_eps"],
-                exploration_final_eps=exp["exploration_final_eps"],
-                exploration_fraction=exp["exploration_fraction"],
-                total_timesteps=exp["total_timesteps"],
-                experiment_name=exp["name"]
-            )
+        if experiments_to_run:
+            # Use spawn context on Windows for CUDA compatibility
+            with ProcessPoolExecutor(max_workers=max_workers) as executor:
+                futures = {
+                    executor.submit(run_single_experiment, exp, resume): exp['name']
+                    for exp in experiments_to_run
+                }
 
-            result = {
-                "experiment": exp["name"],
-                "hyperparameters": exp,
-                "mean_reward": float(np.mean(rewards)) if rewards else 0,
-                "std_reward": float(np.std(rewards)) if rewards else 0,
-                "max_reward": float(np.max(rewards)) if rewards else 0,
-                "total_episodes": len(rewards),
-                "mean_episode_length": float(np.mean(lengths)) if lengths else 0
-            }
-            results.append(result)
+                for future in as_completed(futures):
+                    exp_name = futures[future]
+                    try:
+                        result = future.result()
+                        print(f"[{exp_name}] Finished processing")
+                    except Exception as e:
+                        print(f"[{exp_name}] Exception: {e}")
+    else:
+        # Sequential execution (original behavior)
+        for i, exp in enumerate(experiments):
+            print(f"\n{'#'*60}")
+            print(f"Experiment {i+1}/{len(experiments)}: {exp['name']}")
+            print(f"{'#'*60}")
 
-        except Exception as e:
-            print(f"Experiment {exp['name']} failed: {e}")
-            results.append({
-                "experiment": exp["name"],
-                "error": str(e)
-            })
+            # Check if experiment already completed (for resume support)
+            if resume and is_experiment_completed(exp['name']):
+                print(
+                    f"Skipping '{exp['name']}' - already completed. Use --no-resume to force re-run.")
+                continue
 
-    # Save all results
+            try:
+                _, rewards, lengths = train_dqn(
+                    policy="CnnPolicy",
+                    learning_rate=exp["learning_rate"],
+                    gamma=exp["gamma"],
+                    batch_size=exp["batch_size"],
+                    exploration_initial_eps=exp["exploration_initial_eps"],
+                    exploration_final_eps=exp["exploration_final_eps"],
+                    exploration_fraction=exp["exploration_fraction"],
+                    total_timesteps=exp["total_timesteps"],
+                    experiment_name=exp["name"]
+                )
+                print(f"Experiment {exp['name']} completed!")
+
+            except Exception as e:
+                print(f"Experiment {exp['name']} failed: {e}")
+
+    # Aggregate results from disk (works for both parallel and sequential)
+    results = aggregate_results_from_disk()
+
+    # Save aggregated results
+    os.makedirs('./logs', exist_ok=True)
     with open('./logs/experiment_results.json', 'w') as f:
         json.dump(results, f, indent=2)
 
@@ -406,12 +543,32 @@ def run_hyperparameter_experiments(resume: bool = True):
     print("\n" + "="*80)
     print("HYPERPARAMETER TUNING RESULTS SUMMARY")
     print("="*80)
-    print(f"{'Experiment':<20} {'Mean Reward':<15} {'Max Reward':<15} {'Episodes':<10}")
+    print(f"{'Experiment':<20} {'Mean Reward':<15} {'Best Eval':<15} {'Episodes':<10}")
     print("-"*80)
-    for r in results:
-        if 'error' not in r:
-            print(
-                f"{r['experiment']:<20} {r['mean_reward']:<15.2f} {r['max_reward']:<15.2f} {r['total_episodes']:<10}")
+
+    # Sort by best eval reward (or mean reward as fallback)
+    sorted_results = sorted(
+        results,
+        key=lambda r: r.get('best_eval_reward') or r.get('mean_reward', 0),
+        reverse=True
+    )
+
+    for r in sorted_results:
+        eval_str = f"{r['best_eval_reward']:.2f}" if r.get(
+            'best_eval_reward') else "N/A"
+        print(
+            f"{r['experiment']:<20} {r['mean_reward']:<15.2f} {eval_str:<15} {r['total_episodes']:<10}")
+
+    # Print best experiment
+    if sorted_results:
+        best = sorted_results[0]
+        print("\n" + "="*80)
+        print(f"BEST EXPERIMENT: {best['experiment']}")
+        print(f"  Mean Reward: {best['mean_reward']:.2f}")
+        if best.get('best_eval_reward'):
+            print(f"  Best Eval Reward: {best['best_eval_reward']:.2f}")
+        print(f"  Model Location: {best.get('exp_dir', 'N/A')}")
+        print("="*80)
 
     return results
 
@@ -472,6 +629,12 @@ if __name__ == "__main__":
                         help="Fraction of training for epsilon decay")
     parser.add_argument("--no-resume", action="store_true",
                         help="Don't skip completed experiments (force re-run all)")
+    parser.add_argument("--parallel", action="store_true",
+                        help="Run experiments in parallel (use with caution on GPU)")
+    parser.add_argument("--workers", type=int, default=2,
+                        help="Number of parallel workers (default: 2)")
+    parser.add_argument("--results", action="store_true",
+                        help="Just show aggregated results from completed experiments")
 
     args = parser.parse_args()
 
@@ -491,11 +654,37 @@ if __name__ == "__main__":
         )
 
     elif args.mode == "experiments":
-        # Run all hyperparameter experiments
-        print("Running hyperparameter tuning experiments...")
-        if not args.no_resume:
-            print("(Resumable mode: completed experiments will be skipped)")
-        results = run_hyperparameter_experiments(resume=not args.no_resume)
+        # Just show results if --results flag
+        if args.results:
+            print("Aggregating results from completed experiments...")
+            results = aggregate_results_from_disk()
+            sorted_results = sorted(
+                results,
+                key=lambda r: r.get('best_eval_reward') or r.get(
+                    'mean_reward', 0),
+                reverse=True
+            )
+            print(f"\n{'Experiment':<20} {'Mean Reward':<15} {'Best Eval':<15}")
+            print("-"*50)
+            for r in sorted_results:
+                eval_str = f"{r['best_eval_reward']:.2f}" if r.get(
+                    'best_eval_reward') else "N/A"
+                print(
+                    f"{r['experiment']:<20} {r['mean_reward']:<15.2f} {eval_str:<15}")
+            if sorted_results:
+                print(f"\nBest: {sorted_results[0]['experiment']}")
+        else:
+            # Run experiments
+            print("Running hyperparameter tuning experiments...")
+            if not args.no_resume:
+                print("(Resumable mode: completed experiments will be skipped)")
+            if args.parallel:
+                print(f"(Parallel mode: {args.workers} workers)")
+            results = run_hyperparameter_experiments(
+                resume=not args.no_resume,
+                parallel=args.parallel,
+                max_workers=args.workers
+            )
 
     elif args.mode == "compare":
         # Compare policies
